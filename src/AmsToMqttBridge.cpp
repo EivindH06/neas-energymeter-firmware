@@ -1046,6 +1046,7 @@ void handleNtpChange() {
 		ds.setTimezone(tz);
 		ea.setTimezone(tz);
 		ps->setTimezone(tz);
+		updater.setTimezone(tz); // Ensure auto-updater has timezone data for window checks
 	}
 
 	config.ackNtpChange();
