@@ -137,6 +137,7 @@ private:
     bool shouldTriggerAutoUpgrade();
     bool isWithinAutoWindow(time_t localTime) const;
     bool computeCurrentVersionMatch();
+    void maybePerformVersionCheck(uint32_t seconds);
 
     uint8_t* buf = NULL;
     uint16_t bufPos = 0;
@@ -149,6 +150,8 @@ private:
     time_t lastAutoAttemptDay = 0;
     time_t nextAutoAttemptDay = 0;
     bool currentVersionMatchesLatest = false;
+    uint8_t lastAutoSkipReason = 0;
+    time_t lastScheduledFetchDay = 0;
 
     #if defined(ESP32)
     bool readPartition(uint8_t num, const esp_partition_info_t* info);

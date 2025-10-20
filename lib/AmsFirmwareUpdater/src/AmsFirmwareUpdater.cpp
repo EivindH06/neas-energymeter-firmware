@@ -1,3 +1,9 @@
+#include <Arduino.h>
+#if !defined(AUTO_UPDATE_INITIAL_DELAY_SECONDS)
+static constexpr uint32_t AUTO_UPDATE_INITIAL_DELAY_SECONDS = 300; // 5 minutes
+#endif
+static constexpr uint32_t AUTO_UPDATE_RETRY_STALE_SECONDS = 120; // 2 minutes when waiting for new release
+static constexpr uint32_t AUTO_UPDATE_RETRY_CURRENT_SECONDS = 3600; // 1 hour when already up to date
 #include "AmsFirmwareUpdater.h"
 #include "AmsStorage.h"
 #include "FirmwareVersion.h"
@@ -262,11 +268,8 @@ void AmsFirmwareUpdater::loop() {
             updateStatusChanged = true;
         }
     } else {
-        uint32_t seconds = millis() / 1000.0;
-        if((lastVersionCheck == 0 && seconds > 20) || seconds - lastVersionCheck > 86400) {
-            fetchNextVersion();
-            lastVersionCheck = seconds;
-        }
+        uint32_t seconds = millis() / 1000UL;
+        maybePerformVersionCheck(seconds);
 
         if(shouldTriggerAutoUpgrade()) {
             if(setTargetVersion(nextVersion)) {
@@ -296,11 +299,13 @@ void AmsFirmwareUpdater::setUpgradeConfig(const UpgradeConfig& cfg) {
     if(changed) {
         nextAutoAttemptDay = 0;
         lastAutoAttemptDay = 0;
+        lastScheduledFetchDay = 0;
     }
 }
 
 void AmsFirmwareUpdater::setTimezone(Timezone* tz) {
     this->tz = tz;
+    lastScheduledFetchDay = 0;
 }
 
 void AmsFirmwareUpdater::refreshUpgradeConfig() {
@@ -327,32 +332,139 @@ void AmsFirmwareUpdater::refreshUpgradeConfig() {
     }
 }
 
+void AmsFirmwareUpdater::maybePerformVersionCheck(uint32_t seconds) {
+    bool shouldCheck = false;
+    bool scheduled = false;
+    time_t scheduledMidnight = 0;
+    bool withinWindow = false;
+    time_t nowUtc = 0;
+    time_t localTime = 0;
+
+    if(autoUpgrade && tz != NULL) {
+        nowUtc = now();
+        if(nowUtc > 0) {
+            localTime = tz->toLocal(nowUtc);
+            withinWindow = isWithinAutoWindow(localTime);
+        }
+    }
+
+    if(lastVersionCheck == 0) {
+        if(seconds >= AUTO_UPDATE_INITIAL_DELAY_SECONDS) {
+            shouldCheck = true;
+        }
+    } else {
+        uint32_t interval;
+        if(currentVersionMatchesLatest) {
+            interval = withinWindow ? AUTO_UPDATE_RETRY_STALE_SECONDS : AUTO_UPDATE_RETRY_CURRENT_SECONDS;
+        } else {
+            interval = AUTO_UPDATE_RETRY_STALE_SECONDS;
+        }
+        if(seconds - lastVersionCheck >= interval) {
+            shouldCheck = true;
+        }
+    }
+
+    if(!shouldCheck && autoUpgrade && tz != NULL && nowUtc > 0) {
+        tmElements_t tm;
+        breakTime(localTime, tm);
+        scheduledMidnight = localTime - (tm.Hour * 3600UL + tm.Minute * 60UL + tm.Second);
+        uint8_t scheduledHour = upgradeConfig.windowStartHour % 24;
+        if(tm.Hour % 24 == scheduledHour && lastScheduledFetchDay != scheduledMidnight) {
+            shouldCheck = true;
+            scheduled = true;
+        }
+    }
+
+    if(shouldCheck) {
+        bool hadVersion = strlen(nextVersion) > 0;
+        bool wasCurrent = currentVersionMatchesLatest;
+        if(fetchNextVersion()) {
+            if(strlen(nextVersion) > 0 && debugger != NULL && debugger->isActive(RemoteDebug::INFO)) {
+                debugger->printf_P(PSTR("Fetched next version %s\n"), nextVersion);
+            }
+        } else if(!wasCurrent && debugger != NULL && debugger->isActive(RemoteDebug::DEBUG)) {
+            debugger->println(F("Version check returned no update"));
+        }
+        lastVersionCheck = seconds;
+        if(scheduled) {
+            lastScheduledFetchDay = scheduledMidnight;
+        }
+    }
+}
+
 bool AmsFirmwareUpdater::shouldTriggerAutoUpgrade() {
     nextAutoAttemptDay = 0;
 
-    if(!autoUpgrade) return false;
-    if(tz == NULL) return false;
-    if(strlen(nextVersion) == 0) return false;
-    if(currentVersionMatchesLatest) return false;
-    if(strlen(updateStatus.toVersion) > 0) return false;
-    if(!hw->isVoltageOptimal(0.2)) return false;
+    uint8_t reason = 0;
 
-    time_t nowUtc = now();
-    if(nowUtc <= 0) return false;
+    if(!autoUpgrade) {
+        reason = 1;
+    } else if(tz == NULL) {
+        reason = 2;
+    } else if(strlen(nextVersion) == 0) {
+        reason = 3;
+    } else if(currentVersionMatchesLatest) {
+        reason = 4;
+    } else if(strlen(updateStatus.toVersion) > 0 && updateStatus.errorCode == AMS_UPDATE_ERR_OK && (updateStatus.size > 0 || updateStatus.block_position > 0)) {
+        reason = 5;
+    } else if(!hw->isVoltageOptimal(0.2)) {
+        reason = 6;
+    } else {
+        time_t nowUtc = now();
+        if(nowUtc <= 0) {
+            reason = 7;
+        } else {
+            time_t localTime = tz->toLocal(nowUtc);
+            if(!isWithinAutoWindow(localTime)) {
+                reason = 8;
+            } else {
+                tmElements_t tm;
+                breakTime(localTime, tm);
+                time_t midnight = localTime - (tm.Hour * 3600UL + tm.Minute * 60UL + tm.Second);
+                if(lastAutoAttemptDay == midnight) {
+                    reason = 9;
+                } else {
+                    nextAutoAttemptDay = midnight;
+                    if(lastAutoSkipReason != 0) {
+#if defined(AMS_REMOTE_DEBUG)
+                        if(debugger != NULL && debugger->isActive(RemoteDebug::INFO)) {
+                            debugger->println(F("Auto-upgrade conditions satisfied"));
+                        }
+#endif
+                    }
+                    lastAutoSkipReason = 0;
+                    return true;
+                }
+            }
+        }
+    }
 
-    time_t localTime = tz->toLocal(nowUtc);
-    if(!isWithinAutoWindow(localTime)) return false;
-
-    tmElements_t tm;
-    breakTime(localTime, tm);
-    time_t midnight = localTime - (tm.Hour * 3600UL + tm.Minute * 60UL + tm.Second);
-
-    if(lastAutoAttemptDay == midnight) {
+    if(reason == 0) {
         return false;
     }
 
-    nextAutoAttemptDay = midnight;
-    return true;
+    if(reason != lastAutoSkipReason) {
+#if defined(AMS_REMOTE_DEBUG)
+        if(debugger != NULL && debugger->isActive(RemoteDebug::INFO)) {
+            static const char* const messages[] = {
+                "",
+                "disabled",
+                "timezone missing",
+                "no next version",
+                "already on latest",
+                "update in progress",
+                "voltage not optimal",
+                "time unknown",
+                "outside window",
+                "already tried today"
+            };
+            const char* msg = reason < (sizeof(messages)/sizeof(messages[0])) ? messages[reason] : "unknown";
+            debugger->printf_P(PSTR("Auto-upgrade skipped: %s\n"), msg);
+        }
+#endif
+        lastAutoSkipReason = reason;
+    }
+    return false;
 }
 
 bool AmsFirmwareUpdater::isWithinAutoWindow(time_t localTime) const {

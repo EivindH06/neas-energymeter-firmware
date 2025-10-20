@@ -36,6 +36,15 @@
       translations = update;
     });
 
+    const debugLevels = [
+        { value: 0, label: 'Verbose' },
+        { value: 1, label: 'Debug' },
+        { value: 2, label: 'Info' },
+        { value: 3, label: 'Warning' },
+        { value: 4, label: 'Error' },
+        { value: 5, label: 'Silent' }
+    ];
+
     let uiElements = [{
         name: 'Import gauge',
         key: 'i'
@@ -118,6 +127,25 @@
                     e: Number(configuration.fw.e ?? 3)
                 };
             }
+            if(configuration?.fw) {
+                configuration.fw.e = Number(configuration.fw.s ?? configuration.fw.e ?? 2);
+            }
+            if(!configuration?.d) {
+                configuration = {
+                    ...configuration,
+                    d: {
+                        s: false,
+                        t: false,
+                        l: 4
+                    }
+                };
+            } else {
+                configuration.d = {
+                    s: configuration.d.s === true || configuration.d.s === 'true',
+                    t: configuration.d.t === true || configuration.d.t === 'true',
+                    l: Number(configuration.d.l ?? 4)
+                };
+            }
             if(configuration?.u?.lang && !languages.find(lang => lang.code === configuration.u.lang)) {
                 languages.push({ code: configuration.u.lang, name: translations.language?.name ?? "Unknown"})
             }
@@ -125,6 +153,10 @@
         }
     });
     getConfiguration();
+
+    $: if(configuration?.fw) {
+        configuration.fw.e = Number(configuration.fw.s ?? 0);
+    }
 
     $: if(languages.length) {
         const hubLabel = translations.consent?.load_from_server ?? 'Load from server';
@@ -483,17 +515,14 @@
                 </label>
             </div>
             <div class="my-1 grid grid-cols-2 gap-2">
-                <div>
-                    Start hour<br/>
+                <div class="col-span-2">
+                    Update hour<br/>
                     <input name="fws" type="number" min="0" max="23" class="in-s w-full" bind:value={configuration.fw.s} disabled={!configuration.fw.a}/>
-                </div>
-                <div>
-                    End hour<br/>
-                    <input name="fwe" type="number" min="0" max="23" class="in-s w-full" bind:value={configuration.fw.e} disabled={!configuration.fw.a}/>
+                    <input type="hidden" name="fwe" value={configuration.fw.s}/>
                 </div>
             </div>
             <div class="my-1 text-xs text-gray-500">
-                When enabled, the device will install available updates once per night between {formatHour(configuration.fw.s)} and {formatHour(configuration.fw.e)} using its local time zone.
+                When enabled, the device checks for updates daily at {formatHour(configuration.fw.s)} (local time) and applies them automatically if available.
             </div>
             <div class="my-1 text-xs">
                 {#if sysinfo?.upgrade?.m === true}
@@ -503,6 +532,35 @@
                 {:else}
                     Checking for updates…
                 {/if}
+            </div>
+        </div>
+        {/if}
+        {#if configuration?.d}
+        <div class="cnt">
+            <strong class="text-sm">Debug logging</strong>
+            <input type="hidden" name="d" value="true"/>
+            <div class="my-1">
+                <label>
+                    <input type="checkbox" name="dt" value="true" bind:checked={configuration.d.t} class="rounded mb-1"/>
+                    Enable telnet (RemoteDebug)
+                </label>
+            </div>
+            <div class="my-1">
+                <label>
+                    <input type="checkbox" name="ds" value="true" bind:checked={configuration.d.s} class="rounded mb-1"/>
+                    Enable serial log output
+                </label>
+            </div>
+            <div class="my-1">
+                Log level<br/>
+                <select name="dl" bind:value={configuration.d.l} class="in-s">
+                    {#each debugLevels as option}
+                        <option value={option.value}>{option.label}</option>
+                    {/each}
+                </select>
+            </div>
+            <div class="my-1 text-xs text-gray-500">
+                Telnet logging requires the device to be connected to the network. Leave telnet off for normal operation.
             </div>
         </div>
         {/if}
