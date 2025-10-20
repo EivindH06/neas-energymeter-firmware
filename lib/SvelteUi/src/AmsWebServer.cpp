@@ -1438,7 +1438,8 @@ void AmsWebServer::handleSave() {
 			if(server.hasArg(F("sf"))) {
 				String consentArg = server.arg(F("sf"));
 				consentArg.trim();
-				consentValue = (consentArg == F("1") || consentArg.equalsIgnoreCase(F("true"))) ? 1 : 2;
+				consentArg.toLowerCase();
+				consentValue = (consentArg == "1" || consentArg == "true") ? 1 : 2;
 			}
 			sys.userConfigured = success;
 			sys.dataCollectionConsent = consentValue;
