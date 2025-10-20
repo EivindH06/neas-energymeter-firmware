@@ -30,7 +30,6 @@
   import Welcome from "./lib/Welcome.svelte";
   import Mask from "./lib/Mask.svelte";
   import FileUploadComponent from "./lib/FileUploadComponent.svelte";
-  import ConsentComponent from "./lib/ConsentComponent.svelte";
   import PriceConfig from "./lib/PriceConfig.svelte";
   import DataEdit from "./lib/DataEdit.svelte";
   import { updateRealtime } from "./lib/RealtimeStore.js";
@@ -38,6 +37,8 @@
 
   let basepath = document.getElementsByTagName("base")[0].getAttribute("href");
   if (!basepath) basepath = "/";
+
+  getTranslations("no");
 
   let prices;
   pricesStore.subscribe((update) => {
@@ -102,17 +103,17 @@
     })();
 
     if (sysinfo.vndcfg === false) {
-      if (currentPath === "setup") {
+      if (currentPath !== "vendor") {
         navigate(basepath + "vendor");
-      } else if (currentPath !== "welcome" && currentPath !== "vendor") {
+      }
+      return;
+    }
+
+    if (sysinfo.usrcfg === false) {
+      if (currentPath !== "setup" && currentPath !== "welcome") {
         navigate(basepath + "welcome");
       }
-    } else if (sysinfo.usrcfg === false) {
-      if (currentPath !== "welcome" && currentPath !== "setup") {
-        navigate(basepath + "welcome");
-      }
-    } else if (sysinfo.fwconsent === 0) {
-      if (currentPath !== "consent") navigate(basepath + "consent");
+      return;
     }
 
     if (sysinfo.ui.k === 1) {
@@ -165,7 +166,7 @@
       : "/";
 
   const shouldHideHeaderPath = (pathname = "/") =>
-    pathname === "/setup" || pathname === "/consent" || pathname === "/welcome";
+    pathname === "/setup" || pathname === "/welcome";
 
   const updateCurrentPathname = () => {
     if (typeof window !== "undefined") {
@@ -243,9 +244,6 @@
     </Route>
     <Route path="/mqtt-key">
       <FileUploadComponent title="private key" action="/mqtt-key" />
-    </Route>
-    <Route path="/consent">
-      <ConsentComponent {sysinfo} {basepath} />
     </Route>
     <Route path="/setup">
       <SetupPanel {sysinfo} {data} />

@@ -43,6 +43,10 @@
 #include "html/wifi_medium_light_svg.h"
 #include "html/wifi_low_light_svg.h"
 #include "html/wifi_off_light_svg.h"
+#include "html/wifi_high_svg.h"
+#include "html/wifi_medium_svg.h"
+#include "html/wifi_low_svg.h"
+#include "html/wifi_off_svg.h"
 
 #if defined(ESP32)
 #include <esp_task_wdt.h>
@@ -136,7 +140,10 @@ void AmsWebServer::setup(AmsConfiguration* config, GpioConfig* gpioConfig, AmsDa
 	server.on(context + F("/wifi-high-light.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiHighLightSvg, this));
 	server.on(context + F("/wifi-medium-light.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiMediumLightSvg, this));
 	server.on(context + F("/wifi-low-light.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiLowLightSvg, this));
-	server.on(context + F("/wifi-off-light.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiOffSvg, this));
+	server.on(context + F("/wifi-off-light.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiOffLightSvg, this));
+	server.on(context + F("/wifi-high.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiHighSvg, this));
+	server.on(context + F("/wifi-medium.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiMediumSvg, this));
+	server.on(context + F("/wifi-low.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiLowSvg, this));
 	server.on(context + F("/wifi-off.svg"), HTTP_GET, std::bind(&AmsWebServer::wifiOffSvg, this));
 
 	server.on(context + F("/sysinfo.json"), HTTP_GET, std::bind(&AmsWebServer::sysinfoJson, this));
@@ -361,6 +368,21 @@ void AmsWebServer::wifiMediumLightSvg() {
 
 void AmsWebServer::wifiLowLightSvg() {
     server.send_P(200, "image/svg+xml", WIFI_LOW_LIGHT_SVG, WIFI_LOW_LIGHT_SVG_LEN);
+}
+
+void AmsWebServer::wifiOffLightSvg() {
+    server.send_P(200, "image/svg+xml", WIFI_OFF_LIGHT_SVG, WIFI_OFF_LIGHT_SVG_LEN);
+}
+
+void AmsWebServer::wifiHighSvg() {
+	server.send_P(200, "image/svg+xml", WIFI_HIGH_SVG, WIFI_HIGH_SVG_LEN);
+}
+void AmsWebServer::wifiMediumSvg() {
+	server.send_P(200, "image/svg+xml", WIFI_MEDIUM_SVG, WIFI_MEDIUM_SVG_LEN);
+}
+
+void AmsWebServer::wifiLowSvg() {
+	server.send_P(200, "image/svg+xml", WIFI_LOW_SVG, WIFI_LOW_SVG_LEN);
 }
 
 void AmsWebServer::wifiOffSvg() {
@@ -1412,8 +1434,14 @@ void AmsWebServer::handleSave() {
 				reconnectHost = defaultHostname;
 			}
 			
+			uint8_t consentValue = 1;
+			if(server.hasArg(F("sf"))) {
+				String consentArg = server.arg(F("sf"));
+				consentArg.trim();
+				consentValue = (consentArg == F("1") || consentArg.equalsIgnoreCase(F("true"))) ? 1 : 2;
+			}
 			sys.userConfigured = success;
-			sys.dataCollectionConsent = 0;
+			sys.dataCollectionConsent = consentValue;
 			config->setSystemConfig(sys);
 
 			performRestart = true;
