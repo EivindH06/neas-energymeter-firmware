@@ -322,10 +322,10 @@
                 </div>
                 {#if networks?.c == -1}
                     <div
-                        class="flex items-center justify-center py-8 text-neas-green dark:text-green"
+                        class="flex items-center justify-center py-8 text-black dark:text-black"
                     >
                         <div
-                            class="animate-spin rounded-full h-6 w-6 border-b-2 border-neas-lightgreen mr-3"
+                            class="animate-spin rounded-full h-6 w-6 border-b-2 border-neas-green mr-3"
                         ></div>
                         <span class="text-sm font-medium"
                             >{translations.conf?.connection?.searching ??
@@ -378,7 +378,7 @@
                                     class="flex items-center gap-3 flex-shrink-0"
                                 >
                                     <img
-                                        class="h-6 w-6 opacity-70 group-hover:opacity-100"
+                                        class="h-10 w-10"
                                         src={networkSignalInfos[index]?.icon ??
                                             WIFI_ICON_MAP.off}
                                         alt={networkSignalInfos[index]?.title ??
@@ -395,7 +395,7 @@
                         class="text-center py-8 text-neas-green dark:text-neas-green"
                     >
                         <svg
-                            class="w-12 h-12 mx-auto mb-3 opacity-50"
+                            class="mb-3 opacity-100"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -427,7 +427,7 @@
                     name="sp"
                     type="password"
                     pattern={asciiPatternExt}
-                    class="w-full px-4 py-3 rounded-xl bg-neas-gray dark:bg-neas-gray text-white dark:text-white focus:ring-2 focus:ring-neas-lightgreen focus:border-neas-lightgreen transition-colors shadow-sm"
+                    class="w-full px-4 py-3 rounded-xl bg-neas-gray dark:bg-neas-gray text-neas-green dark:text-neas-green border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-neas-green focus:border-neas-green transition-colors shadow-sm"
                     placeholder={translations.conf?.connection
                         ?.password_placeholder ?? "Enter WiFi password"}
                     autocomplete="off"

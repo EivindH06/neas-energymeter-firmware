@@ -386,7 +386,7 @@ void AmsWebServer::wifiLowSvg() {
 }
 
 void AmsWebServer::wifiOffSvg() {
-    server.send_P(200, "image/svg+xml", WIFI_OFF_LIGHT_SVG, WIFI_OFF_LIGHT_SVG_LEN);
+	server.send_P(200, "image/svg+xml", WIFI_OFF_SVG, WIFI_OFF_SVG_LEN);
 }
 
 void AmsWebServer::sysinfoJson() {
