@@ -34,7 +34,7 @@
     };
 
     let wifiIcon = WIFI_ICON_MAP.off;
-    let wifiTitle = "Wi-Fi offline";
+    let wifiTitle = "Wi-Fi frakoblet";
 
     let translations = {};
     translationsStore.subscribe((update) => {
@@ -269,6 +269,7 @@
               return {
                   icon: WIFI_ICON_MAP[level] ?? WIFI_ICON_MAP.off,
                   title: label,
+                  rssi: typeof net?.r === "undefined" ? null : net.r,
               };
           })
         : [];
@@ -278,11 +279,11 @@
     <!-- Neas Logo -->
     <div class="mb-8">
         <svg
-            class="w-24 h-24 text-blue-600 dark:text-blue-400"
+            class="w-20 h-20 text-blue-600 dark:text-blue-400"
             viewBox="0 0 100 100"
             fill="currentColor"
         >
-            <img alt="Neas logo" src={NeasLogo} class="w-full h-full" />
+            <img alt="Neas logo" src={NeasLogo} class="w-36 h-auto" />
         </svg>
     </div>
 
@@ -302,11 +303,11 @@
             <!-- Title -->
             <div class="text-center mb-8">
                 <h1 class="text-2xl font-semibold text-neas-green mb-2">
-                    {translations.setup?.title ?? "WiFi Setup"}
+                    {translations.setup?.title ?? "WiFi-oppsett"}
                 </h1>
                 <p class="text-sm text-black">
                     {translations.setup?.subtitle ??
-                        "Connect your device to the internet"}
+                        "Koble enheten til internett"}
                 </p>
             </div>
 
@@ -317,7 +318,7 @@
                         class="block text-sm font-medium text-neas-green dark:text-neas-green"
                     >
                         {translations.conf?.connection?.ssid ??
-                            "Select Network"}
+                            "Velg nettverk"}
                     </span>
                 </div>
                 {#if networks?.c == -1}
@@ -329,7 +330,7 @@
                         ></div>
                         <span class="text-sm font-medium"
                             >{translations.conf?.connection?.searching ??
-                                "Scanning for networks..."}</span
+                                "Søker etter nettverk..."}</span
                         >
                     </div>
                 {/if}
@@ -355,23 +356,11 @@
                                         required={connectionMode == 1 ||
                                             connectionMode == 2}
                                     />
-                                    <span class="flex flex-col min-w-0 flex-1">
-                                        <span
-                                            class="font-medium text-neas-green dark:text-neas-green truncate"
-                                        >
-                                            {network.s ||
-                                                (translations.conf?.connection
-                                                    ?.hidden_ssid ??
-                                                    "Hidden network")}
-                                        </span>
-                                        <span
-                                            class="text-xs text-neas-green dark:text-neas-green"
-                                        >
-                                            {networkSignalInfos[index]?.title ??
-                                                translations.conf?.connection
-                                                    ?.wifi_offline ??
-                                                "Signal unavailable"}
-                                        </span>
+                                    <span class="min-w-0 flex-1 text-neas-green dark:text-neas-green font-medium truncate">
+                                        {network.s ||
+                                            (translations.conf?.connection
+                                                ?.hidden_ssid ??
+                                                "Skjult nettverk")}
                                     </span>
                                 </span>
                                 <div
@@ -382,9 +371,12 @@
                                         src={networkSignalInfos[index]?.icon ??
                                             WIFI_ICON_MAP.off}
                                         alt={networkSignalInfos[index]?.title ??
-                                            "Wi-Fi offline"}
-                                        title={networkSignalInfos[index]
-                                            ?.title ?? "Wi-Fi offline"}
+                                            "Wi-Fi frakoblet"}
+                                        title={networkSignalInfos[index]?.rssi !=
+                                        null
+                                            ? `${networkSignalInfos[index]?.title ?? "Wi-Fi frakoblet"} (${networkSignalInfos[index].rssi} dBm)`
+                                            : networkSignalInfos[index]?.title ??
+                                                "Wi-Fi frakoblet"}
                                     />
                                 </div>
                             </label>
@@ -409,7 +401,7 @@
                         </svg>
                         <p class="text-sm font-medium">
                             {translations.conf?.connection?.no_networks ??
-                                "No networks found"}
+                                "Ingen nettverk funnet"}
                         </p>
                     </div>
                 {/if}
@@ -420,7 +412,7 @@
                     for="wifi-password"
                     class="block text-sm font-medium text-neas-green dark:text-neas-green mb-2"
                 >
-                    {translations.conf?.connection?.psk ?? "WiFi Password"}
+                    {translations.conf?.connection?.psk ?? "WiFi-passord"}
                 </label>
                 <input
                     id="wifi-password"
@@ -429,7 +421,7 @@
                     pattern={asciiPatternExt}
                     class="w-full px-4 py-3 rounded-xl bg-neas-gray dark:bg-neas-gray text-neas-green dark:text-neas-green border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-neas-green focus:border-neas-green transition-colors shadow-sm"
                     placeholder={translations.conf?.connection
-                        ?.password_placeholder ?? "Enter WiFi password"}
+                        ?.password_placeholder ?? "Skriv inn WiFi-passord"}
                     autocomplete="off"
                     required={connectionMode == 2}
                 />
@@ -441,7 +433,7 @@
                     type="submit"
                     class="w-full bg-neas-green hover:bg-neas-green-90 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
                 >
-                    {translations.btn?.save ?? "Connect & Continue"}
+                    {"Koble til og fortsett"}
                 </button>
             </div>
             {#if reconnectTargets.length}
@@ -467,13 +459,13 @@
                                 class="text-sm font-medium text-green-800 dark:text-green-200 mb-2"
                             >
                                 {translations.setup?.reconnect?.title ??
-                                    "Setup Complete!"}
+                                    "Oppsett fullført!"}
                             </h4>
                             <p
                                 class="text-sm text-green-700 dark:text-green-300 mb-3"
                             >
                                 {translations.setup?.reconnect?.info ??
-                                    "Device is rebooting. You can reconnect using these addresses:"}
+                                    "Enheten starter på nytt og prøver å koble til på følgende adresser:"}
                             </p>
                             <div class="space-y-1">
                                 {#each reconnectTargets as target}
@@ -499,5 +491,5 @@
 
 <Mask
     active={loadingOrSaving}
-    message={translations.setup?.mask ?? "Connecting..."}
+    message={translations.setup?.mask ?? "Kobler til..."}
 />

@@ -74,8 +74,8 @@
 <nav class="bg-neas-green-90 rounded-md">
   <div class="flex flex-wrap space-x-4 text-l text-neas-gray">
     <div class="flex text-xl text-neas-gray p-2 flex-auto">
-      <Link to="/" class="flex space-x-2">
-        <img class="p-1" alt="Neas logo" src={NeasLogo} />
+      <Link to="/" class="flex items-center">
+        <img class="w-36 h-auto" alt="Neas logo" src={NeasLogo} />
       </Link>
     </div>
     <div class="flex-none my-auto p-2 flex space-x-4">
