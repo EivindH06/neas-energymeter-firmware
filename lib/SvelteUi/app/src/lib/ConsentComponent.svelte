@@ -4,10 +4,8 @@
         translationsStore,
         getTranslations,
     } from "./TranslationService.js";
-    import fetchWithTimeout from "./fetchWithTimeout";
     import Mask from "./Mask.svelte";
     import { navigate } from "svelte-navigator";
-    import { wiki } from "./Helpers";
     import {
         meterPresets,
         getMeterPresetById,
@@ -27,91 +25,26 @@
     });
 
     let loadingOrSaving = false;
-    let consentChoice = "";
     let autoUpdateChoice = "";
-    let languageChoice = "no"; // Default to Norwegian
-    let languages = [
-        { code: "en", name: "English" },
-        { code: "no", name: "Norsk" },
-    ];
+    const DEFAULT_LANGUAGE = "no";
     let canSave = false;
     let meterState = createMeterStateFromConfiguration();
     let selectedMeterPresetId = "";
     let selectedMeterPreset = null;
 
     // Load Norwegian translations on component initialization
-    if (languageChoice === "no") {
-        getTranslations("no");
-    }
-
-    $: if (
-        translations?.language?.code &&
-        !languages.find((lang) => lang.code === translations.language.code)
-    ) {
-        languages = [
-            ...languages,
-            {
-                code: translations.language.code,
-                name: translations.language.name ?? translations.language.code,
-            },
-        ];
-    }
+    getTranslations(DEFAULT_LANGUAGE);
 
     $: if (sysinfo) {
-        if (sysinfo.fwconsent === 1 || sysinfo.fwconsent === 2) {
-            consentChoice = String(sysinfo.fwconsent);
-        }
         const autoFlag = sysinfo?.upgrade?.auto;
         if (autoFlag === true) {
             autoUpdateChoice = "true";
         } else if (autoFlag === false) {
             autoUpdateChoice = "false";
         }
-        const sysLang = sysinfo?.ui?.lang;
-        if (sysLang && !languages.find((lang) => lang.code === sysLang)) {
-            languages = [
-                ...languages,
-                {
-                    code: sysLang,
-                    name: translations.language?.name ?? sysLang.toUpperCase(),
-                },
-            ];
-        }
-        if (!languageChoice && sysLang) {
-            languageChoice = sysLang;
-        }
     }
 
-    $: {
-        if (!languageChoice) {
-            languageChoice = "no"; // Ensure Norwegian is always the default
-        }
-    }
-
-    $: canSave =
-        consentChoice !== "" && autoUpdateChoice !== "" && !loadingOrSaving;
-
-    async function handleLanguageChange(e) {
-        const selected = e.target.value;
-        if (selected === "hub") {
-            try {
-                const response = await fetchWithTimeout(
-                    "http://hub.amsleser.no/hub/language/list.json",
-                );
-                languages = await response.json();
-                languageChoice = translations.language.code;
-            } catch (err) {
-                console.error("Failed to load languages from hub", err);
-                languageChoice = translations.language.code;
-            }
-            return;
-        }
-
-        languageChoice = selected;
-        if (languageChoice) {
-            await getTranslations(languageChoice);
-        }
-    }
+    $: canSave = autoUpdateChoice !== "" && !loadingOrSaving;
 
     function handlePresetSelection(presetId) {
         selectedMeterPresetId = presetId;
@@ -169,7 +102,7 @@
             data.append(key, typeof value === "string" ? value : String(value));
         }
 
-        const consentValue = formData.get("sf");
+        const consentValue = formData.get("sf") ?? "1";
         const autoValue = formData.get("fwa");
         const autoDecision =
             autoValue === "true" ? true : autoValue === "false" ? false : null;
@@ -210,9 +143,7 @@
             if (!s.ui || typeof s.ui !== "object") {
                 s.ui = {};
             }
-            if (languageChoice) {
-                s.ui.lang = languageChoice;
-            }
+            s.ui.lang = DEFAULT_LANGUAGE;
             if (!s.upgrade || typeof s.upgrade !== "object") {
                 s.upgrade = { x: -1, e: 0, f: null, t: null, m: false };
             }
@@ -254,6 +185,8 @@
         class="bg-neas-green dark:neas-green rounded-2xl max-w-md w-full p-8"
     >
         <form on:submit|preventDefault={handleSubmit} autocomplete="off">
+            <input type="hidden" name="sf" value="1" />
+            <input type="hidden" name="ulang" value={DEFAULT_LANGUAGE} />
             <!-- Title -->
             <div class="text-center mb-8">
                 <h1
@@ -265,62 +198,6 @@
                     Complete the setup to get started
                 </p>
             </div>
-            <!-- Data Collection Consent -->
-            <div class="mb-6">
-                <div class="mb-3">
-                    <h3
-                        class="text-sm font-medium text-slate-900 dark:text-slate-100 mb-1"
-                    >
-                        {translations.consent?.one_click ?? "Data Collection"}
-                    </h3>
-                    <p class="text-xs text-slate-600 dark:text-slate-400 mb-2">
-                        <a
-                            href={wiki(
-                                "Data-collection-on-one-click-firmware-upgrade",
-                            )}
-                            target="_blank"
-                            class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
-                        >
-                            {translations.consent?.read_more ?? "Read more"}
-                        </a>
-                    </p>
-                </div>
-                <div class="space-y-2">
-                    <label
-                        class="flex items-center p-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-neas-green-100 dark:bg-neas-green-90 hover:bg-neas-green-90 dark:hover:bg-neas-green cursor-pointer transition-colors"
-                    >
-                        <input
-                            type="radio"
-                            name="sf"
-                            value="1"
-                            bind:group={consentChoice}
-                            class="mr-3 text-blue-600"
-                            required
-                        />
-                        <span class="text-sm text-slate-700 dark:text-slate-300"
-                            >{translations.consent?.yes ??
-                                "Yes, allow data collection"}</span
-                        >
-                    </label>
-                    <label
-                        class="flex items-center p-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-neas-green-100 dark:bg-neas-green-90 hover:bg-neas-green-90 dark:hover:bg-neas-green cursor-pointer transition-colors"
-                    >
-                        <input
-                            type="radio"
-                            name="sf"
-                            value="2"
-                            bind:group={consentChoice}
-                            class="mr-3 text-blue-600"
-                            required
-                        />
-                        <span class="text-sm text-slate-700 dark:text-slate-300"
-                            >{translations.consent?.no ??
-                                "No, disable data collection"}</span
-                        >
-                    </label>
-                </div>
-            </div>
-
             <!-- Automatic Updates -->
             <input type="hidden" name="fw" value="true" />
             <div class="mb-6">
@@ -463,30 +340,6 @@
                     </div>
                 </div>
             {/if}
-            <!-- Language Selection -->
-            <div class="mb-8">
-                <label
-                    for="language-select"
-                    class="block text-sm font-medium text-slate-900 dark:text-slate-100 mb-2"
-                >
-                    {translations.consent?.language ?? "Language"}
-                </label>
-                <select
-                    id="language-select"
-                    name="ulang"
-                    class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    bind:value={languageChoice}
-                    on:change={handleLanguageChange}
-                >
-                    {#each languages as lang}
-                        <option value={lang.code}>{lang.name}</option>
-                    {/each}
-                    <option value="hub"
-                        >{translations.consent?.load_from_server ??
-                            "Load from server"}</option
-                    >
-                </select>
-            </div>
 
             <!-- Submit Button -->
             <div class="text-center">

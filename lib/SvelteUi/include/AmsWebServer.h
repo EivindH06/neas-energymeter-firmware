@@ -125,7 +125,12 @@ private:
 	void wifiHighLightSvg();
 	void wifiMediumLightSvg();
 	void wifiLowLightSvg();
+	void wifiOffLightSvg();
+	void wifiHighSvg();
+	void wifiMediumSvg();
+	void wifiLowSvg();
 	void wifiOffSvg();
+
 
 	void sysinfoJson();
 	void dataJson();
